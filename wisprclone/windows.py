@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 import sounddevice as sd
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
     QPushButton, QTabWidget, QTextEdit, QVBoxLayout, QWidget,
@@ -28,9 +29,12 @@ def _input_device_names() -> list[str]:
 
 
 class MainWindow(QTabWidget):
+    hotkey_captured = Signal(str)
+
     def __init__(self, config: Config, history: HistoryStore,
                  on_save: Callable[[Config], None]):
         super().__init__()
+        self.hotkey_captured.connect(self._apply_captured_hotkey)
         self.config = config
         self.history = history
         self.on_save = on_save
@@ -117,11 +121,11 @@ class MainWindow(QTabWidget):
 
     def _begin_capture(self) -> None:
         self.hotkey_label.setText("Press keys…")
-        self._capture = HotkeyCapture(on_captured=self._on_captured)
+        self._capture = HotkeyCapture(on_captured=self.hotkey_captured.emit)
         self._capture.start()
 
-    def _on_captured(self, hotkey: str) -> None:
-        # Called from the pynput thread; Qt label update is simple text, safe enough here.
+    def _apply_captured_hotkey(self, hotkey: str) -> None:
+        # Delivered on the GUI thread via the hotkey_captured signal.
         self.config.hotkey = hotkey
         self.hotkey_label.setText(hotkey)
 
@@ -133,7 +137,6 @@ class MainWindow(QTabWidget):
         self.config.vocab_hint = self.vocab_edit.text().strip()
         self.config.remove_fillers = self.fillers_chk.isChecked()
         self.config.auto_paste = self.autopaste_chk.isChecked()
-        self.config.hotkey = self.hotkey_label.text()
         self.on_save(self.config)
 
     # --- History tab ---
