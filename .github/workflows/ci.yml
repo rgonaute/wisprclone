@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        # The 45 unit tests exercise pure logic and thin wrappers. They import
+        # numpy, pynput and sounddevice at module load, but do NOT need the heavy
+        # runtime deps (faster-whisper, PySide6, pywin32) — those are imported
+        # lazily and are only used by paths verified in the manual smoke checklist.
+        run: python -m pip install --upgrade pip numpy pynput sounddevice pytest
+
+      - name: Run tests
+        run: python -m pytest -q
