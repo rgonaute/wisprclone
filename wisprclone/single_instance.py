@@ -16,9 +16,9 @@ class SingleInstance:
     @staticmethod
     def _win32_create(name):
         import ctypes
-        kernel32 = ctypes.windll.kernel32
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         handle = kernel32.CreateMutexW(None, False, name)
-        return handle, kernel32.GetLastError()
+        return handle, ctypes.get_last_error()
 
     def acquire(self) -> bool:
         self._handle, last_error = self._create(self.name)

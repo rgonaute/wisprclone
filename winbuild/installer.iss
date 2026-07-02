@@ -3,7 +3,7 @@
 #endif
 
 [Setup]
-AppId={{8F3B1C42-1E7A-4C9E-9E1D-WISPRCLONE001}
+AppId={{7A4C2E10-9B3D-4F58-A1C6-2E9D5B0F3A71}
 AppName=WisprClone
 AppVersion={#Version}
 AppPublisher=rgonaute
@@ -43,5 +43,5 @@ Type: files; Name: "{userstartup}\WisprClone.vbs"
 Filename: "{app}\WisprClone.exe"; Description: "Launch WisprClone"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\wisprclone"; Tasks: purgedata
 Type: filesandordirs; Name: "{userappdata}\wisprclone"; Tasks: purgedata
+Type: filesandordirs; Name: "{%USERPROFILE}\.cache\huggingface\hub\models--Systran--faster-whisper-*"; Tasks: purgedata

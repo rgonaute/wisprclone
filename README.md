@@ -24,8 +24,8 @@ the checkbox ticked — starts automatically at login. First launch downloads
 the model (~3 GB, one time); the tray shows "Loading model…".
 
 Uninstall from Settings → Apps, or the Start Menu "Uninstall WisprClone".
-Your settings/history/model are kept unless you tick "also delete settings…"
-during uninstall.
+Your settings, history, and downloaded model are kept — unless you ticked
+"also delete settings…" when you installed.
 
 ### Building the installer yourself
 ```

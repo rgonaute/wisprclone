@@ -48,6 +48,12 @@ def _on_main_thread(fn):
     _invoker.post(fn)
 
 
+def _model_is_cached(model: str) -> bool:
+    from pathlib import Path
+    hub = Path.home() / ".cache" / "huggingface" / "hub"
+    return any(hub.glob(f"models--Systran--faster-whisper-{model}"))
+
+
 def main() -> int:
     from .config import APP_DIR
     from .runtime_setup import configure
@@ -70,7 +76,6 @@ def main() -> int:
     global _invoker
     _invoker = _MainThreadInvoker()
 
-    from .config import APP_DIR
     config = Config.load()
     history = HistoryStore(APP_DIR / "history.json", cap=config.history_cap)
     recorder = Recorder(device=config.input_device)
@@ -144,8 +149,11 @@ def main() -> int:
 
 def _safe_warm(transcriber: Transcriber, tray_ref) -> None:
     try:
-        _on_main_thread(lambda: tray_ref["tray"].notify(
-            "Loading model… first run downloads ~3 GB (one time)."))
+        if _model_is_cached(transcriber.config.model):
+            _on_main_thread(lambda: tray_ref["tray"].notify("Loading model…"))
+        else:
+            _on_main_thread(lambda: tray_ref["tray"].notify(
+                "Downloading model (~3 GB, one time)…"))
         transcriber.load()
         if transcriber.used_fallback and transcriber.active_mode:
             model, device, compute_type = transcriber.active_mode
