@@ -132,9 +132,14 @@ def main() -> int:
 def _safe_warm(transcriber: Transcriber, tray_ref) -> None:
     try:
         transcriber.load()
-        if transcriber.used_fallback:
-            _on_main_thread(lambda: tray_ref["tray"].notify(
-                "GPU unavailable — using CPU (base model)."))
+        if transcriber.used_fallback and transcriber.active_mode:
+            model, device, compute_type = transcriber.active_mode
+            if device == "cuda":
+                msg = (f"GPU ready using {compute_type} "
+                       f"(this GPU can't do float16) — model {model}.")
+            else:
+                msg = f"GPU unavailable — using CPU with the {model} model."
+            _on_main_thread(lambda m=msg: tray_ref["tray"].notify(m))
     except Exception as exc:
         _on_main_thread(lambda: tray_ref["tray"].notify(f"Model load failed: {exc}"))
 

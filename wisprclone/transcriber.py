@@ -30,15 +30,41 @@ class Transcriber:
         with self._lock:
             if self._model is not None:
                 return
-            try:
-                self._model = self._model_factory()
-            except Exception:
-                self.config.device = "cpu"
-                self.config.compute_type = "int8"
-                self.config.model = "base"
-                self.used_fallback = True
-                self._model = self._model_factory()
-            self._loaded = (self.config.model, self.config.device, self.config.compute_type)
+            requested = (self.config.model, self.config.device, self.config.compute_type)
+            last_exc: Optional[Exception] = None
+            for device, compute_type, model in self._fallback_chain():
+                self.config.device = device
+                self.config.compute_type = compute_type
+                self.config.model = model
+                try:
+                    self._model = self._model_factory()
+                except Exception as exc:  # try the next combination in the chain
+                    last_exc = exc
+                    continue
+                self._loaded = (model, device, compute_type)
+                self.used_fallback = self._loaded != requested
+                return
+            raise last_exc if last_exc is not None else RuntimeError("Model failed to load")
+
+    def _fallback_chain(self):
+        """Ordered (device, compute_type, model) attempts: the user's request
+        first, then graceful degradation. Many older NVIDIA GPUs (e.g. GTX 10xx
+        / Pascal) cannot do efficient float16, so retry on the GPU with int8 —
+        keeping the requested model — before dropping to CPU."""
+        chain = [(self.config.device, self.config.compute_type, self.config.model)]
+        if self.config.device == "cuda" and self.config.compute_type != "int8":
+            chain.append(("cuda", "int8", self.config.model))
+        chain.append(("cpu", "int8", "base"))
+        unique = []
+        for combo in chain:
+            if combo not in unique:
+                unique.append(combo)
+        return unique
+
+    @property
+    def active_mode(self):
+        """(model, device, compute_type) actually loaded, or None if not loaded."""
+        return self._loaded
 
     def ensure_current(self) -> bool:
         """Drop the loaded model if the model/device/compute_type config changed

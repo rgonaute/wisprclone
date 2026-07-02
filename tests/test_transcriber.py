@@ -60,19 +60,54 @@ def test_ensure_current_resets_after_model_change():
     assert t.ensure_current() is False        # already dropped
 
 
-def test_cuda_failure_falls_back_to_cpu():
-    attempts = {"n": 0}
+def test_float16_unsupported_retries_gpu_int8_same_model():
+    # e.g. GTX 10xx: float16 raises, but the GPU is fine with int8.
+    cfg = Config(device="cuda", compute_type="float16", model="large-v3")
 
     def factory():
-        attempts["n"] += 1
-        if attempts["n"] == 1:
-            raise RuntimeError("CUDA unavailable")
+        if cfg.compute_type == "float16":
+            raise ValueError("float16 compute type not supported on this device")
         return FakeModel()
 
-    cfg = Config(device="cuda", compute_type="float16", model="large-v3")
     t = Transcriber(cfg, model_factory=factory)
     t.load()
     assert t.used_fallback is True
-    assert cfg.device == "cpu"
-    assert cfg.compute_type == "int8"
-    assert cfg.model == "base"
+    assert (cfg.device, cfg.compute_type, cfg.model) == ("cuda", "int8", "large-v3")
+    assert t._loaded == ("large-v3", "cuda", "int8")
+
+
+def test_falls_back_to_cpu_when_cuda_unavailable():
+    # No usable CUDA at all: every cuda attempt fails, CPU/int8/base succeeds.
+    cfg = Config(device="cuda", compute_type="float16", model="large-v3")
+
+    def factory():
+        if cfg.device == "cuda":
+            raise RuntimeError("no CUDA-capable device is detected")
+        return FakeModel()
+
+    t = Transcriber(cfg, model_factory=factory)
+    t.load()
+    assert t.used_fallback is True
+    assert (cfg.device, cfg.compute_type, cfg.model) == ("cpu", "int8", "base")
+
+
+def test_no_fallback_when_first_attempt_succeeds():
+    cfg = Config(device="cuda", compute_type="float16", model="large-v3")
+    t = Transcriber(cfg, model_factory=lambda: FakeModel())
+    t.load()
+    assert t.used_fallback is False
+    assert t._loaded == ("large-v3", "cuda", "float16")
+
+
+def test_load_raises_when_every_attempt_fails():
+    cfg = Config(device="cuda", compute_type="float16", model="large-v3")
+
+    def factory():
+        raise RuntimeError("total failure")
+
+    t = Transcriber(cfg, model_factory=factory)
+    try:
+        t.load()
+        assert False, "expected load() to raise when all fallbacks fail"
+    except RuntimeError as exc:
+        assert "total failure" in str(exc)
