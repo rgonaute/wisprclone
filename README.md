@@ -15,6 +15,24 @@ pip install -r requirements.txt
 ```
 First run downloads the `large-v3` model (~1.5 GB) once, then runs fully offline.
 
+## Install (packaged Windows program)
+
+Download `WisprClone-Setup.exe` and run it (Windows SmartScreen will show
+"unrecognized app" for the unsigned installer — More info → Run anyway).
+It installs per-user (no admin), adds a Start Menu entry, and — if you leave
+the checkbox ticked — starts automatically at login. First launch downloads
+the model (~3 GB, one time); the tray shows "Loading model…".
+
+Uninstall from Settings → Apps, or the Start Menu "Uninstall WisprClone".
+Your settings/history/model are kept unless you tick "also delete settings…"
+during uninstall.
+
+### Building the installer yourself
+```
+powershell -ExecutionPolicy Bypass -File winbuild\build.ps1
+```
+Produces `dist\WisprClone-Setup.exe` (~1–1.4 GB; installed size ~2.3–2.6 GB).
+
 ## Run
 ```
 python -m wisprclone
