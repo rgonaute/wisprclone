@@ -28,11 +28,13 @@ class Transcriber:
         for; `active_mode` reflects what actually loaded (which may differ after
         a fallback). The returned reference lets callers hold the model even if
         `ensure_current()` nulls `self._model` concurrently."""
-        if self._model is not None:
-            return self._model
+        model = self._model
+        if model is not None:
+            return model
         with self._lock:
-            if self._model is not None:
-                return self._model
+            model = self._model
+            if model is not None:  # another thread finished loading while we waited
+                return model
             requested = (self.config.model, self.config.device, self.config.compute_type)
             last_exc: Optional[Exception] = None
             for model, device, compute_type in self._fallback_chain():
