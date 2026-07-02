@@ -19,6 +19,9 @@ auto-updater, onboarding, stats, or console-logging bloat is carried over.
 
 ### Goals
 - One global push-to-talk hotkey: hold → record → release → transcribe → auto-paste.
+- **User-configurable hotkey set via press-to-capture** in the app: the user clicks
+  "Set hotkey", presses the key(s), and the app records exactly that. Supports a single
+  key (e.g. Right Ctrl) or a combination (e.g. Ctrl+Alt+Space).
 - Local transcription with `faster-whisper` (`large-v3`, multilingual).
 - English + Hebrew, single shortcut, automatic per-utterance language detection.
 - Optional tray override to pin the language (Auto / English / Hebrew).
@@ -91,10 +94,10 @@ signals so UI state stays consistent.
 | `transcriber.py` | `Transcriber` — lazy-load `WhisperModel` (kept warm), `transcribe(samples)→str`. Passes `language` (None if auto) and `initial_prompt=vocab_hint`. Applies `clean_text()`. | faster-whisper |
 | `textcleanup.py` | `clean_text(raw, remove_fillers)` — strip noise tags (`[BLANK_AUDIO]`, `(music)`, etc., language-agnostic), collapse whitespace/space-before-punctuation. English filler-word removal only when `remove_fillers` and text is Latin-script. | — (stdlib re) |
 | `paste.py` | `Paster` — Win32: snapshot clipboard → set text → `SendInput` Ctrl+V → restore clipboard if unchanged. Detect UIPI paste failure → keep text on clipboard + signal notice. | pywin32 / ctypes |
-| `hotkey.py` | `HotkeyListener` — pynput global listener; hold-to-talk (default) or toggle mode; configurable key; emits press/release callbacks. | pynput |
+| `hotkey.py` | A hotkey is a **set of keys**. `parse_hotkey(str)→frozenset` / `format_hotkey(frozenset)→str` (canonical, e.g. `"ctrl_r"` or `"alt_l+ctrl_l+space"`). `HotkeyListener` — pynput global listener tracking currently-held keys; fires `on_start` when the held set covers the target (hold-to-talk default, or toggle), `on_stop` when any target key is released. `HotkeyCapture` — records the maximal simultaneously-held key set for the press-to-capture UI. Both capture and runtime matching use pynput, so they stay consistent. | pynput |
 | `history.py` | `HistoryStore` — append/list/clear entries `{text, timestamp, duration, language, model}` to `history.json`, pruned to `history_cap`. | — |
 | `tray.py` | `Tray` — `QSystemTrayIcon` + menu: status line, Language submenu (Auto/English/Hebrew), Open Settings, Open History, Quit. Icon reflects state. | PySide6 |
-| `windows.py` | `MainWindow` — tabbed Qt window: **Settings** (hotkey, mic dropdown, model, language, vocab hint, toggles) and **History** (list with copy + clear). Renders RTL/bidi text natively. | PySide6 |
+| `windows.py` | `MainWindow` — tabbed Qt window: **Settings** (a **"Set hotkey" press-to-capture button** driven by `HotkeyCapture`, mic dropdown, model, language, vocab hint, toggles) and **History** (list with copy + clear). Renders RTL/bidi text natively. | PySide6, hotkey.py |
 | `app.py` | `AppController` — owns state machine + `Config`; instantiates services; wires hotkey→record→transcribe→paste→history; manages model warm-up and CUDA→CPU fallback. | all above |
 | `__main__.py` | Entry point: build `QApplication`, `AppController`, run tray. `python -m wisprclone`. | — |
 
@@ -175,7 +178,7 @@ wisprclone/
 
 | Setting | Default |
 |---|---|
-| Hotkey | Hold **Right Ctrl** (push-to-talk), configurable |
+| Hotkey | Hold **Right Ctrl** (push-to-talk); user-configurable via press-to-capture (single key or combo) |
 | Trigger mode | Hold-to-talk (toggle available) |
 | Model | `large-v3` (multilingual) |
 | Device / compute | `cuda` / `float16` (fallback `cpu` / `int8` / `base`) |
