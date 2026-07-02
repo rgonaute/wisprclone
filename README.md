@@ -31,3 +31,16 @@ the vocabulary hint improves recognition of the specific English terms you list.
 ```
 python -m pytest
 ```
+
+## Known limitations
+- **Elevated (admin) windows.** Windows blocks synthetic input from a normal app
+  into an elevated window. When the focused app is elevated, WisprClone leaves the
+  text on the clipboard and notifies you to press **Ctrl+V** yourself.
+- **Changing the model** takes effect on your **next** dictation (the tray notifies
+  you); it isn't reloaded instantly on Save.
+- **Hotkey combos with letter keys** (e.g. Ctrl+V) may display oddly because of how
+  the OS reports modified keys — prefer pure-modifier hotkeys (Right Ctrl) or
+  modifier + non-letter keys (Ctrl+Alt+Space).
+- **Mixed-language within one sentence** is best-effort — see Language above.
+- History and settings are stored as plain JSON under `%APPDATA%\wisprclone\`
+  (local, unencrypted; fine for a single-user machine).
