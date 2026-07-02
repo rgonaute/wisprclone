@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from .app import AppController
@@ -16,14 +16,46 @@ from .transcriber import Transcriber
 from .windows import MainWindow
 
 
+class _MainThreadInvoker(QObject):
+    """Runs a callable on the thread this object lives in (the GUI thread).
+
+    QTimer.singleShot cannot be used to marshal across threads: it creates a
+    timer owned by the *calling* thread, and background threads (pynput
+    listener, transcription worker) have no Qt event loop, so the timer never
+    fires. Emitting a signal from another thread to a slot owned by a
+    main-thread QObject delivers via a queued connection, so the callable
+    runs on the main Qt event loop.
+    """
+
+    _invoke = Signal(object)
+
+    def __init__(self):
+        super().__init__()
+        self._invoke.connect(self._run)
+
+    def _run(self, fn):
+        fn()
+
+    def post(self, fn):
+        self._invoke.emit(fn)
+
+
+_invoker: "_MainThreadInvoker | None" = None
+
+
 def _on_main_thread(fn):
     """Marshal a call from a background thread onto the Qt event loop."""
-    QTimer.singleShot(0, fn)
+    _invoker.post(fn)
 
 
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # tray app keeps running with no window
+
+    # Invoker must be created on the main (GUI) thread so cross-thread posts
+    # are delivered to this thread's event loop via a queued connection.
+    global _invoker
+    _invoker = _MainThreadInvoker()
 
     from .config import APP_DIR
     config = Config.load()
