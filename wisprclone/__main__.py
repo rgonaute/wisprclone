@@ -49,11 +49,21 @@ def _on_main_thread(fn):
 
 
 def main() -> int:
+    from .config import APP_DIR
+    from .runtime_setup import configure
+    configure(APP_DIR / "logs")  # console-safe streams + logging (windowed build)
+
+    from .single_instance import SingleInstance
+    instance = SingleInstance()
+    if not instance.acquire():
+        return 0  # another copy is already running; do nothing
+
     from .cuda_paths import ensure_cuda_on_path
     ensure_cuda_on_path()  # CUDA DLLs on PATH before any model load
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # tray app keeps running with no window
+    app._wisprclone_instance = instance  # keep the mutex handle alive for the app's life
 
     # Invoker must be created on the main (GUI) thread so cross-thread posts
     # are delivered to this thread's event loop via a queued connection.
@@ -134,6 +144,8 @@ def main() -> int:
 
 def _safe_warm(transcriber: Transcriber, tray_ref) -> None:
     try:
+        _on_main_thread(lambda: tray_ref["tray"].notify(
+            "Loading model… first run downloads ~3 GB (one time)."))
         transcriber.load()
         if transcriber.used_fallback and transcriber.active_mode:
             model, device, compute_type = transcriber.active_mode
