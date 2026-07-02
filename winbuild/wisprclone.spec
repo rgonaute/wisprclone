@@ -4,6 +4,11 @@ import os
 from PyInstaller.utils.hooks import collect_data_files
 import nvidia  # provided by nvidia-cublas-cu12 / nvidia-cudnn-cu12
 
+# PyInstaller resolves relative paths in a .spec against the spec's own
+# directory (SPECPATH), NOT the cwd — so anchor everything to it explicitly.
+here = SPECPATH                  # …/winbuild (directory of this spec)
+repo = os.path.dirname(here)     # repo root, where the `wisprclone` package lives
+
 # Bundle the CUDA DLLs, preserving nvidia/<lib>/bin layout so
 # cuda_paths.ensure_cuda_on_path() finds them via sys._MEIPASS at runtime.
 cuda_binaries = []
@@ -18,8 +23,8 @@ for base in list(nvidia.__path__):
 datas = collect_data_files("faster_whisper")  # Silero VAD asset, etc.
 
 a = Analysis(
-    ['winbuild/entry.py'],
-    pathex=['.'],
+    [os.path.join(here, 'entry.py')],
+    pathex=[repo],
     binaries=cuda_binaries,
     datas=datas,
     hiddenimports=['hf_xet'],
@@ -30,6 +35,7 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name='WisprClone', console=False,
-    icon='winbuild/wisprclone.ico', version='winbuild/version_info.txt',
+    icon=os.path.join(here, 'wisprclone.ico'),
+    version=os.path.join(here, 'version_info.txt'),
 )
 coll = COLLECT(exe, a.binaries, a.datas, name='WisprClone')
