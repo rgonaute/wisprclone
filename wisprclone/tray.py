@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
@@ -19,7 +20,7 @@ _STATE_COLOR = {
 
 def _dot_icon(hex_color: str) -> QIcon:
     pix = QPixmap(16, 16)
-    pix.fill(0)  # transparent
+    pix.fill(Qt.GlobalColor.transparent)
     from PySide6.QtGui import QColor, QPainter
     painter = QPainter(pix)
     painter.setBrush(QColor(hex_color))
@@ -36,9 +37,9 @@ class Tray:
         self.config = config
         self.icon = QSystemTrayIcon(_dot_icon(_STATE_COLOR["idle"]))
         self.icon.setToolTip(_STATE_TOOLTIP["idle"])
-        menu = QMenu()
+        self._menu = QMenu()
 
-        lang_menu = menu.addMenu("Language")
+        lang_menu = self._menu.addMenu("Language")
         group = QActionGroup(lang_menu)
         group.setExclusive(True)
         for label, code in [("Auto", "auto"), ("English", "en"), ("Hebrew", "he")]:
@@ -48,11 +49,11 @@ class Tray:
             group.addAction(act)
             lang_menu.addAction(act)
 
-        menu.addAction("Settings", open_settings)
-        menu.addAction("History", open_history)
-        menu.addSeparator()
-        menu.addAction("Quit", quit_fn)
-        self.icon.setContextMenu(menu)
+        self._menu.addAction("Settings", open_settings)
+        self._menu.addAction("History", open_history)
+        self._menu.addSeparator()
+        self._menu.addAction("Quit", quit_fn)
+        self.icon.setContextMenu(self._menu)
         self.icon.show()
 
     def set_state(self, state: str) -> None:
