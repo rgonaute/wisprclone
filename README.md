@@ -1,5 +1,7 @@
 # WisprClone
 
+[![tests](https://github.com/rgonaute/wisprclone/actions/workflows/ci.yml/badge.svg)](https://github.com/rgonaute/wisprclone/actions/workflows/ci.yml)
+
 Minimal, offline Windows dictation. Hold a hotkey, speak, and the text is
 transcribed locally (English + Hebrew) and pasted into the focused field.
 
