@@ -18,8 +18,23 @@ class Transcriber:
         self._model_factory = model_factory or self._default_factory
 
     def _default_factory(self, model, device, compute_type):
+        from .cuda_paths import ensure_cuda_on_path
+        ensure_cuda_on_path()  # make cuBLAS/cuDNN loadable before we touch CUDA
         from faster_whisper import WhisperModel
-        return WhisperModel(model, device=device, compute_type=compute_type)
+        built = WhisperModel(model, device=device, compute_type=compute_type)
+        self._warmup(built)  # surface inference-time backend failures here
+        return built
+
+    @staticmethod
+    def _warmup(model) -> None:
+        # Construction can succeed while inference fails (e.g. a CUDA backend
+        # whose cuBLAS/cuDNN DLLs aren't on the search path). Run one tiny
+        # inference now so such failures raise inside load()'s try, letting the
+        # fallback chain degrade instead of every real dictation failing later.
+        import numpy as np
+        segments, _info = model.transcribe(np.zeros(16000, dtype=np.float32))
+        for _ in segments:  # faster-whisper is lazy; iterate to force execution
+            pass
 
     def load(self):
         """Build the model (once), trying the fallback chain. Returns the model.

@@ -49,6 +49,9 @@ def _on_main_thread(fn):
 
 
 def main() -> int:
+    from .cuda_paths import ensure_cuda_on_path
+    ensure_cuda_on_path()  # CUDA DLLs on PATH before any model load
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # tray app keeps running with no window
 
