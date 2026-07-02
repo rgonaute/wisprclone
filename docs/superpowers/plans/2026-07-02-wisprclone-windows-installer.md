@@ -660,6 +660,7 @@ pyinstaller-hooks-contrib
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot   # repo root
 Set-Location $root
+$env:PYTHONPATH = $root   # so gen_version_info.py and the version read can import wisprclone (not pip-installed)
 
 $venv = ".venv-build"
 if (Test-Path $venv) { Remove-Item -Recurse -Force $venv }
