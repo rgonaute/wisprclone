@@ -35,6 +35,10 @@ class FakePaster:
         self.pasted.append(text)
         return self.result
 
+    def copy_only(self, text):
+        self.copied = getattr(self, "copied", [])
+        self.copied.append(text)
+
 
 class FakeHistory:
     def __init__(self):
@@ -87,6 +91,17 @@ def test_elevated_paste_failure_notifies_user():
     ctrl.stop_and_transcribe()
     assert any("Ctrl+V" in n for n in notes)
     assert ctrl.history.entries[0].text == "hi"   # still logged
+
+
+def test_auto_paste_disabled_copies_without_pasting():
+    ctrl, notes, states = _controller(text="hi there")
+    ctrl.config.auto_paste = False
+    ctrl.start_recording()
+    ctrl.stop_and_transcribe()
+    assert ctrl.paster.pasted == []
+    assert ctrl.paster.copied == ["hi there"]
+    assert any("Ctrl+V" in n for n in notes)
+    assert ctrl.history.entries[0].text == "hi there"
 
 
 def test_transcription_error_notifies_and_returns_to_idle():

@@ -41,6 +41,15 @@ def test_elevated_target_skips_paste_and_leaves_text():
     assert clip.get_text() == "NEW"          # left on clipboard for manual paste
 
 
+def test_copy_only_sets_clipboard_without_pasting():
+    clip = FakeClipboard(initial="OLD")
+    sender = FakeSender()
+    p = Paster(clipboard=clip, sender=sender, elevated_check=lambda: False)
+    p.copy_only("NEW")
+    assert clip.get_text() == "NEW"
+    assert sender.pasted == 0
+
+
 def test_restore_skipped_when_no_previous_clipboard():
     clip = FakeClipboard(initial=None)
     p = Paster(clipboard=clip, sender=FakeSender(), elevated_check=lambda: False)

@@ -22,6 +22,10 @@ class Paster:
             self.clipboard.set_text(previous)
         return True
 
+    def copy_only(self, text: str) -> None:
+        """Place text on the clipboard without sending a synthetic paste."""
+        self.clipboard.set_text(text)
+
 
 class Win32Clipboard:
     def get_text(self) -> Optional[str]:

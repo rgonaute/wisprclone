@@ -58,6 +58,8 @@ def main() -> int:
     def on_save(cfg: Config):
         cfg.save(CONFIG_PATH)
         recorder.device = cfg.input_device
+        if transcriber.ensure_current():
+            tray_ref["tray"].notify("Model will reload on your next dictation.")
         restart_listener()
         tray_ref["tray"].notify("Settings saved.")
 

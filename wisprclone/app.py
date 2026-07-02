@@ -57,8 +57,12 @@ class AppController:
             self._set_state("idle")
             return
 
-        pasted = self.paster.paste_text(text)
-        if not pasted:
+        if self.config.auto_paste:
+            pasted = self.paster.paste_text(text)
+            if not pasted:
+                self._notify("Copied to clipboard — press Ctrl+V to paste.")
+        else:
+            self.paster.copy_only(text)
             self._notify("Copied to clipboard — press Ctrl+V to paste.")
 
         self.history.add(HistoryEntry(

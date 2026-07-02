@@ -49,6 +49,17 @@ def test_result_is_joined_and_cleaned():
     assert t.transcribe([0.0]) == "hello world"
 
 
+def test_ensure_current_resets_after_model_change():
+    cfg = Config(model="large-v3")
+    t = Transcriber(cfg, model_factory=lambda: FakeModel())
+    t.load()
+    assert t.ensure_current() is False       # nothing changed
+    cfg.model = "small"
+    assert t.ensure_current() is True         # change detected -> model dropped
+    assert t._model is None
+    assert t.ensure_current() is False        # already dropped
+
+
 def test_cuda_failure_falls_back_to_cpu():
     attempts = {"n": 0}
 
