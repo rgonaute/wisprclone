@@ -8,3 +8,4 @@ dist/
 WisprClone.vbs
 .venv-build/
 winbuild/version_info.txt
+winbuild/*.log
