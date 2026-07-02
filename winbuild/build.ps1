@@ -26,13 +26,25 @@ if (-not (Test-Path "dist\WisprClone\WisprClone.exe")) { throw "PyInstaller outp
 # Read version for the installer.
 $ver = (& $py -c "import wisprclone; print(wisprclone.__version__)").Trim()
 
-# Locate Inno Setup compiler (install if missing).
-$iscc = Get-Command iscc -ErrorAction SilentlyContinue
+# Locate Inno Setup compiler (install if missing). winget may install it
+# per-user (LOCALAPPDATA) or under Program Files, so check several locations.
+function Find-ISCC {
+  $cmd = Get-Command iscc -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  foreach ($p in @(
+      "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+      "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+      "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+    if (Test-Path $p) { return $p }
+  }
+  return $null
+}
+$iscc = Find-ISCC
 if (-not $iscc) {
-  $candidate = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-  if (-not (Test-Path $candidate)) { winget install -e --id JRSoftware.InnoSetup --accept-source-agreements --accept-package-agreements }
-  $iscc = $candidate
-} else { $iscc = $iscc.Source }
+  winget install -e --id JRSoftware.InnoSetup --accept-source-agreements --accept-package-agreements --disable-interactivity
+  $iscc = Find-ISCC
+}
+if (-not $iscc) { throw "Inno Setup (ISCC.exe) not found after install" }
 
 & $iscc "/DVersion=$ver" winbuild\installer.iss
 
