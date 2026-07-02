@@ -141,7 +141,11 @@ def _safe_warm(transcriber: Transcriber, tray_ref) -> None:
                 msg = f"GPU unavailable — using CPU with the {model} model."
             _on_main_thread(lambda m=msg: tray_ref["tray"].notify(m))
     except Exception as exc:
-        _on_main_thread(lambda: tray_ref["tray"].notify(f"Model load failed: {exc}"))
+        # Bind the message now: `exc` is cleared when this block exits, but the
+        # lambda runs later on the GUI thread (queued), so referencing `exc`
+        # there would raise NameError instead of showing the failure.
+        msg = f"Model load failed: {exc}"
+        _on_main_thread(lambda m=msg: tray_ref["tray"].notify(m))
 
 
 if __name__ == "__main__":

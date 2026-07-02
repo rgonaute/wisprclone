@@ -39,6 +39,7 @@ class MainWindow(QTabWidget):
         self.history = history
         self.on_save = on_save
         self._capture = None
+        self._pending_hotkey = None  # staged capture; applied to config only on Save
         self.setWindowTitle("WisprClone")
         self.resize(460, 420)
         self.addTab(self._build_settings(), "Settings")
@@ -62,7 +63,7 @@ class MainWindow(QTabWidget):
         layout = QVBoxLayout(w)
 
         row = QHBoxLayout()
-        self.hotkey_label = QLabel(self.config.hotkey)
+        self.hotkey_label = QLabel()
         set_btn = QPushButton("Set hotkey")
         set_btn.clicked.connect(self._begin_capture)
         row.addWidget(QLabel("Hotkey:"))
@@ -72,7 +73,6 @@ class MainWindow(QTabWidget):
 
         self.trigger_box = QComboBox()
         self.trigger_box.addItems(["hold", "toggle"])
-        self.trigger_box.setCurrentText(self.config.trigger_mode)
         layout.addWidget(QLabel("Trigger mode:"))
         layout.addWidget(self.trigger_box)
 
@@ -80,56 +80,74 @@ class MainWindow(QTabWidget):
         self.mic_box.addItem("System default", None)
         for name in _input_device_names():
             self.mic_box.addItem(name, name)
-        if self.config.input_device:
-            i = self.mic_box.findData(self.config.input_device)
-            if i >= 0:
-                self.mic_box.setCurrentIndex(i)
         layout.addWidget(QLabel("Microphone:"))
         layout.addWidget(self.mic_box)
 
         self.model_box = QComboBox()
         self.model_box.addItems(_MODELS)
-        self.model_box.setCurrentText(self.config.model)
         layout.addWidget(QLabel("Model (multilingual):"))
         layout.addWidget(self.model_box)
 
         self.lang_box = QComboBox()
         for label, code in _LANGUAGES:
             self.lang_box.addItem(label, code)
-        i = self.lang_box.findData(self.config.language)
-        self.lang_box.setCurrentIndex(max(0, i))
         layout.addWidget(QLabel("Language:"))
         layout.addWidget(self.lang_box)
 
         layout.addWidget(QLabel("Vocabulary hint (English terms you say in Hebrew):"))
-        self.vocab_edit = QLineEdit(self.config.vocab_hint)
+        self.vocab_edit = QLineEdit()
         layout.addWidget(self.vocab_edit)
 
         self.fillers_chk = QCheckBox("Remove English filler words (um, uh)")
-        self.fillers_chk.setChecked(self.config.remove_fillers)
         layout.addWidget(self.fillers_chk)
 
         self.autopaste_chk = QCheckBox("Auto-paste after transcription")
-        self.autopaste_chk.setChecked(self.config.auto_paste)
         layout.addWidget(self.autopaste_chk)
 
         save_btn = QPushButton("Save")
         save_btn.clicked.connect(self._save)
         layout.addWidget(save_btn)
         layout.addStretch(1)
+
+        self._sync_settings_from_config()
         return w
 
+    def _sync_settings_from_config(self) -> None:
+        """Populate the settings widgets from the live config. Called at build
+        time and every time the window is shown, so out-of-band changes (e.g.
+        the tray Language menu, or a fallback-adjusted model) don't get reverted
+        when the user saves a stale window."""
+        self._pending_hotkey = None
+        self.hotkey_label.setText(self.config.hotkey)
+        self.trigger_box.setCurrentText(self.config.trigger_mode)
+        i = self.mic_box.findData(self.config.input_device)
+        self.mic_box.setCurrentIndex(i if i >= 0 else 0)
+        self.model_box.setCurrentText(self.config.model)
+        li = self.lang_box.findData(self.config.language)
+        self.lang_box.setCurrentIndex(li if li >= 0 else 0)
+        self.vocab_edit.setText(self.config.vocab_hint)
+        self.fillers_chk.setChecked(self.config.remove_fillers)
+        self.autopaste_chk.setChecked(self.config.auto_paste)
+
     def _begin_capture(self) -> None:
+        if self._capture is not None:  # don't stack listeners on repeated clicks
+            self._capture.stop()
         self.hotkey_label.setText("Press keys…")
         self._capture = HotkeyCapture(on_captured=self.hotkey_captured.emit)
         self._capture.start()
 
     def _apply_captured_hotkey(self, hotkey: str) -> None:
-        # Delivered on the GUI thread via the hotkey_captured signal.
-        self.config.hotkey = hotkey
+        # Delivered on the GUI thread via the hotkey_captured signal. Stage it —
+        # it becomes the real hotkey only when the user clicks Save, so closing
+        # without saving cancels an accidental capture.
+        self._capture = None
+        self._pending_hotkey = hotkey
         self.hotkey_label.setText(hotkey)
 
     def _save(self) -> None:
+        if self._pending_hotkey is not None:
+            self.config.hotkey = self._pending_hotkey
+            self._pending_hotkey = None
         self.config.trigger_mode = self.trigger_box.currentText()
         self.config.input_device = self.mic_box.currentData()
         self.config.model = self.model_box.currentText()
@@ -182,6 +200,7 @@ class MainWindow(QTabWidget):
         self._refresh_history()
         self.preview.clear()
 
-    def showEvent(self, event):  # refresh history each time the window is shown
+    def showEvent(self, event):  # re-sync from config each time the window is shown
+        self._sync_settings_from_config()
         self._refresh_history()
         super().showEvent(event)

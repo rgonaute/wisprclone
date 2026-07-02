@@ -15,7 +15,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        # The 45 unit tests exercise pure logic and thin wrappers. They import
+        # The unit tests exercise pure logic and thin wrappers. They import
         # numpy, pynput and sounddevice at module load, but do NOT need the heavy
         # runtime deps (faster-whisper, PySide6, pywin32) — those are imported
         # lazily and are only used by paths verified in the manual smoke checklist.

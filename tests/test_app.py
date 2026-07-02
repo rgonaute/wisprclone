@@ -4,11 +4,14 @@ from wisprclone.config import Config
 
 
 class FakeRecorder:
-    def __init__(self, samples):
+    def __init__(self, samples, raise_on_start=None):
         self._samples = samples
+        self._raise_on_start = raise_on_start
         self.started = False
 
     def start(self):
+        if self._raise_on_start:
+            raise self._raise_on_start
         self.started = True
 
     def stop(self):
@@ -27,11 +30,14 @@ class FakeTranscriber:
 
 
 class FakePaster:
-    def __init__(self, result=True):
+    def __init__(self, result=True, raise_on_paste=None):
         self.result = result
+        self._raise_on_paste = raise_on_paste
         self.pasted = []
 
     def paste_text(self, text):
+        if self._raise_on_paste:
+            raise self._raise_on_paste
         self.pasted.append(text)
         return self.result
 
@@ -125,3 +131,41 @@ def test_double_start_stays_in_recording_once():
     ctrl.start_recording()
     ctrl.start_recording()
     assert states.count("recording") == 1
+
+
+def test_paste_exception_returns_to_idle():
+    # Windows clipboard contention (OpenClipboard "access denied") must not
+    # wedge the app in "transcribing" — it must recover to idle.
+    import numpy as np
+    ctrl = AppController(
+        Config(),
+        FakeRecorder(np.ones(16000, dtype=np.float32)),
+        FakeTranscriber("hello"),
+        FakePaster(raise_on_paste=OSError("clipboard access denied")),
+        FakeHistory(),
+        notify=[].append,
+        on_state=[].append,
+        run_async=False,
+    )
+    ctrl.start_recording()
+    ctrl.stop_and_transcribe()
+    assert ctrl.state == "idle"
+
+
+def test_recorder_start_failure_returns_to_idle_and_notifies():
+    import numpy as np
+    notes = []
+    ctrl = AppController(
+        Config(),
+        FakeRecorder(np.ones(16000, dtype=np.float32),
+                     raise_on_start=OSError("no default input device")),
+        FakeTranscriber("hello"),
+        FakePaster(),
+        FakeHistory(),
+        notify=notes.append,
+        on_state=[].append,
+        run_async=False,
+    )
+    ctrl.start_recording()
+    assert ctrl.state == "idle"
+    assert any("Microphone" in n for n in notes)

@@ -17,7 +17,9 @@ class Paster:
         if self.elevated_check():
             return False
         self.sender.ctrl_v()
-        time.sleep(0.05)
+        # Give the target app time to read the clipboard before we restore it;
+        # slower apps (Electron, RDP) can otherwise paste the restored content.
+        time.sleep(0.15)
         if previous is not None and self.clipboard.get_text() == text:
             self.clipboard.set_text(previous)
         return True

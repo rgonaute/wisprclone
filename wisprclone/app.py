@@ -31,12 +31,21 @@ class AppController:
         if self.state != "idle":
             return
         self._set_state("recording")
-        self.recorder.start()
+        try:
+            self.recorder.start()
+        except Exception as exc:  # e.g. mic unplugged / device name stale
+            self._notify(f"Microphone unavailable: {exc}")
+            self._set_state("idle")
 
     def stop_and_transcribe(self) -> None:
         if self.state != "recording":
             return
-        samples = self.recorder.stop()
+        try:
+            samples = self.recorder.stop()
+        except Exception as exc:
+            self._notify(f"Recording error: {exc}")
+            self._set_state("idle")
+            return
         self._set_state("transcribing")
         duration = float(len(samples)) / 16000.0
         if self.run_async:
@@ -46,30 +55,30 @@ class AppController:
             self._do_transcribe(samples, duration)
 
     def _do_transcribe(self, samples, duration: float) -> None:
+        # Everything runs under try/finally so the state ALWAYS returns to idle,
+        # even if paste or history raises (e.g. Windows clipboard access denied);
+        # otherwise the hotkey would stay wedged in "transcribing" until restart.
         try:
             text = self.transcriber.transcribe(samples)
-        except Exception as exc:  # never log transcript content; message only
-            self._notify(f"Transcription failed: {exc}")
-            self._set_state("idle")
-            return
+            if not text:
+                return
 
-        if not text:
-            self._set_state("idle")
-            return
-
-        if self.config.auto_paste:
-            pasted = self.paster.paste_text(text)
-            if not pasted:
+            if self.config.auto_paste:
+                pasted = self.paster.paste_text(text)
+                if not pasted:
+                    self._notify("Copied to clipboard — press Ctrl+V to paste.")
+            else:
+                self.paster.copy_only(text)
                 self._notify("Copied to clipboard — press Ctrl+V to paste.")
-        else:
-            self.paster.copy_only(text)
-            self._notify("Copied to clipboard — press Ctrl+V to paste.")
 
-        self.history.add(HistoryEntry(
-            text=text,
-            timestamp=datetime.now(timezone.utc).isoformat(),
-            duration=duration,
-            language=self.config.language,
-            model=self.config.model,
-        ))
-        self._set_state("idle")
+            self.history.add(HistoryEntry(
+                text=text,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                duration=duration,
+                language=self.config.language,
+                model=self.config.model,
+            ))
+        except Exception as exc:  # never log transcript content; message only
+            self._notify(f"Dictation failed: {exc}")
+        finally:
+            self._set_state("idle")
