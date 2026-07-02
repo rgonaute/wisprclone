@@ -67,7 +67,7 @@ def foreground_is_elevated() -> bool:
     from ctypes import wintypes
 
     user32 = ctypes.windll.user32
-    kernel32 = ctypes.windll.kernel32
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
     ERROR_ACCESS_DENIED = 5
@@ -81,4 +81,4 @@ def foreground_is_elevated() -> bool:
     if handle:
         kernel32.CloseHandle(handle)
         return False
-    return kernel32.GetLastError() == ERROR_ACCESS_DENIED
+    return ctypes.get_last_error() == ERROR_ACCESS_DENIED
