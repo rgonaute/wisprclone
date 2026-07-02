@@ -51,19 +51,19 @@ fallback instead of a false "GPU ready". Verified live on the GTX 1070.
 clean venv (pinned deps + PyInstaller)
         │
         ▼
-PyInstaller (packaging/wisprclone.spec)  ──►  dist/WisprClone/        (one-folder app)
+PyInstaller (winbuild/wisprclone.spec)  ──►  dist/WisprClone/        (one-folder app)
    · windowed, icon, version-file                WisprClone.exe
    · bundle nvidia cuBLAS/cuDNN DLLs             _internal/…  (deps + nvidia/{cublas,cudnn}/bin)
    · hidden imports + data (silero VAD, hf_xet, av.libs)
         │
         ▼
-Inno Setup ISCC (packaging/installer.iss) ──►  dist/WisprClone-Setup.exe
+Inno Setup ISCC (winbuild/installer.iss) ──►  dist/WisprClone-Setup.exe
    · per-user install, Start Menu, uninstaller
    · optional Desktop icon + "start at login" task
    · delete old Startup\WisprClone.vbs; AppMutex
 ```
 
-`packaging/build.ps1` runs the whole chain and prints the final installer path.
+`winbuild/build.ps1` runs the whole chain and prints the final installer path.
 
 ## 5. App Code Changes (for the frozen build)
 
@@ -78,10 +78,10 @@ These are small, live in the app, and are unit-tested where testable.
 
 `cuda_paths.py` already supports the frozen path (`sys._MEIPASS/nvidia`).
 
-## 6. PyInstaller Spec (`packaging/wisprclone.spec`)
+## 6. PyInstaller Spec (`winbuild/wisprclone.spec`)
 
-- **Entry:** a tiny `packaging/entry.py` that does `from wisprclone.__main__ import main; main()` (PyInstaller wants a script, not `-m`).
-- **Mode:** one-folder (`COLLECT`), `console=False`, `icon=packaging/wisprclone.ico`, `version='packaging/version_info.txt'`, name `WisprClone`.
+- **Entry:** a tiny `winbuild/entry.py` that does `from wisprclone.__main__ import main; main()` (PyInstaller wants a script, not `-m`).
+- **Mode:** one-folder (`COLLECT`), `console=False`, `icon=winbuild/wisprclone.ico`, `version='winbuild/version_info.txt'`, name `WisprClone`.
 - **Binaries (CUDA):** add the installed `nvidia/cublas/bin` and `nvidia/cudnn/bin`
   DLLs, preserving the `nvidia/cublas/bin` + `nvidia/cudnn/bin` relative layout
   under the bundle so `sys._MEIPASS/nvidia/...` resolves. Prune `nvblas64_12.dll`.
@@ -93,7 +93,7 @@ These are small, live in the app, and are unit-tested where testable.
   exclude `pytest`, `tkinter`.
 - **`av`:** rely on hooks-contrib to gather `av.libs` FFmpeg DLLs; verify present.
 
-## 7. Inno Setup Script (`packaging/installer.iss`)
+## 7. Inno Setup Script (`winbuild/installer.iss`)
 
 - `AppId` = a fixed GUID; `AppName=WisprClone`; `AppVersion` from `__version__`;
   `AppPublisher=rgonaute`; `WizardStyle=modern`.
@@ -117,7 +117,7 @@ These are small, live in the app, and are unit-tested where testable.
 ## 8. Build environment
 
 - Build in a **fresh venv** (not the polluted global site-packages) with pinned
-  versions in `packaging/requirements-build.txt`: ctranslate2 4.8.0,
+  versions in `winbuild/requirements-build.txt`: ctranslate2 4.8.0,
   faster-whisper 1.2.1, PySide6 6.11.1, huggingface_hub 1.21.0, hf_xet 1.5.1,
   av 18.0.0, numpy 2.4.4, pynput 1.8.2, sounddevice 0.5.5,
   nvidia-cublas-cu12 12.9.2.10, nvidia-cudnn-cu12 9.23.2.1, pywin32 311, plus
@@ -168,7 +168,7 @@ These are small, live in the app, and are unit-tested where testable.
 ## 12. Deliverables
 
 ```
-packaging/
+winbuild/
 ├── entry.py                    # PyInstaller entry: calls wisprclone.main()
 ├── wisprclone.spec             # PyInstaller build spec
 ├── wisprclone.ico              # generated app icon (committed)

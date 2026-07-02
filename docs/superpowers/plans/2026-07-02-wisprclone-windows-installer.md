@@ -347,22 +347,24 @@ git commit -m "feat: wire runtime setup, single-instance guard, and download not
 ### Task 5: App icon
 
 **Files:**
-- Create: `packaging/make_icon.py`
-- Create (generated, committed): `packaging/wisprclone.ico`
+- Create: `winbuild/make_icon.py`
+- Create (generated, committed): `winbuild/wisprclone.ico`
 - Test: `tests/test_icon.py`
 
 **Interfaces:**
-- Produces: `packaging/wisprclone.ico` (multi-size Windows icon). `make_icon.build(path)`.
+- Produces: `winbuild/wisprclone.ico` (multi-size Windows icon). `make_icon.build(path)`.
 
 - [ ] **Step 1: Write the failing test** — `tests/test_icon.py`
 
 ```python
 from pathlib import Path
-from PIL import Image
+
+import pytest
 
 
 def test_make_icon_produces_valid_ico(tmp_path):
-    from packaging.make_icon import build
+    Image = pytest.importorskip("PIL.Image")  # CI has no Pillow -> skip cleanly
+    from winbuild.make_icon import build
     out = tmp_path / "x.ico"
     build(out)
     assert out.exists()
@@ -373,10 +375,10 @@ def test_make_icon_produces_valid_ico(tmp_path):
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_icon.py -v`
-Expected: FAIL (`ModuleNotFoundError: No module named 'packaging.make_icon'`).
-(Note: `packaging/` needs an `__init__.py` for this import — create an empty `packaging/__init__.py`.)
+Expected: FAIL (`ModuleNotFoundError: No module named 'winbuild.make_icon'`).
+(Note: `winbuild/` needs an `__init__.py` for this import — create an empty `winbuild/__init__.py`.)
 
-- [ ] **Step 3: Implement** — create empty `packaging/__init__.py`, then `packaging/make_icon.py`:
+- [ ] **Step 3: Implement** — create empty `winbuild/__init__.py`, then `winbuild/make_icon.py`:
 
 ```python
 """Generate the WisprClone app icon (a simple mic dot on a dark rounded square)."""
@@ -412,13 +414,13 @@ if __name__ == "__main__":
 Run: `python -m pytest tests/test_icon.py -v`
 Expected: PASS.
 
-Run: `python packaging/make_icon.py`
-Expected: prints `wrote .../packaging/wisprclone.ico`.
+Run: `python winbuild/make_icon.py`
+Expected: prints `wrote .../winbuild/wisprclone.ico`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packaging/__init__.py packaging/make_icon.py packaging/wisprclone.ico tests/test_icon.py
+git add winbuild/__init__.py winbuild/make_icon.py winbuild/wisprclone.ico tests/test_icon.py
 git commit -m "feat: generate app icon"
 ```
 
@@ -427,15 +429,15 @@ git commit -m "feat: generate app icon"
 ### Task 6: PyInstaller entry, version resource, and spec
 
 **Files:**
-- Create: `packaging/entry.py`
-- Create: `packaging/gen_version_info.py`
-- Create: `packaging/wisprclone.spec`
+- Create: `winbuild/entry.py`
+- Create: `winbuild/gen_version_info.py`
+- Create: `winbuild/wisprclone.spec`
 
 **Interfaces:**
-- Consumes: `wisprclone.__main__:main`, `wisprclone.__version__`, `packaging/wisprclone.ico`.
+- Consumes: `wisprclone.__main__:main`, `wisprclone.__version__`, `winbuild/wisprclone.ico`.
 - Produces: (when built) `dist/WisprClone/WisprClone.exe` plus `_internal/` with bundled deps and `_internal/nvidia/{cublas,cudnn}/bin`.
 
-- [ ] **Step 1: Create the entry script** — `packaging/entry.py`:
+- [ ] **Step 1: Create the entry script** — `winbuild/entry.py`:
 
 ```python
 import sys
@@ -446,7 +448,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 2: Create the version-resource generator** — `packaging/gen_version_info.py`:
+- [ ] **Step 2: Create the version-resource generator** — `winbuild/gen_version_info.py`:
 
 ```python
 """Write a PyInstaller version resource (version_info.txt) from wisprclone.__version__."""
@@ -487,7 +489,7 @@ if __name__ == "__main__":
     print("wrote", out)
 ```
 
-- [ ] **Step 3: Create the PyInstaller spec** — `packaging/wisprclone.spec` (run from the repo root: `pyinstaller packaging/wisprclone.spec`):
+- [ ] **Step 3: Create the PyInstaller spec** — `winbuild/wisprclone.spec` (run from the repo root: `pyinstaller winbuild/wisprclone.spec`):
 
 ```python
 # -*- mode: python ; coding: utf-8 -*-
@@ -510,7 +512,7 @@ for base in list(nvidia.__path__):
 datas = collect_data_files("faster_whisper")  # Silero VAD asset, etc.
 
 a = Analysis(
-    ['packaging/entry.py'],
+    ['winbuild/entry.py'],
     pathex=['.'],
     binaries=cuda_binaries,
     datas=datas,
@@ -522,23 +524,23 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name='WisprClone', console=False,
-    icon='packaging/wisprclone.ico', version='packaging/version_info.txt',
+    icon='winbuild/wisprclone.ico', version='winbuild/version_info.txt',
 )
 coll = COLLECT(exe, a.binaries, a.datas, name='WisprClone')
 ```
 
 - [ ] **Step 4: Verify the helper scripts run** (full PyInstaller build happens in Task 8 under the clean venv)
 
-Run: `python packaging/gen_version_info.py`
-Expected: prints `wrote .../packaging/version_info.txt`.
+Run: `python winbuild/gen_version_info.py`
+Expected: prints `wrote .../winbuild/version_info.txt`.
 
-Run: `python -c "import ast; ast.parse(open('packaging/wisprclone.spec').read()); print('spec parses')"`
+Run: `python -c "import ast; ast.parse(open('winbuild/wisprclone.spec').read()); print('spec parses')"`
 Expected: `spec parses`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packaging/entry.py packaging/gen_version_info.py packaging/wisprclone.spec packaging/version_info.txt
+git add winbuild/entry.py winbuild/gen_version_info.py winbuild/wisprclone.spec winbuild/version_info.txt
 git commit -m "feat: PyInstaller entry, version resource, and build spec"
 ```
 
@@ -547,13 +549,13 @@ git commit -m "feat: PyInstaller entry, version resource, and build spec"
 ### Task 7: Inno Setup installer script
 
 **Files:**
-- Create: `packaging/installer.iss`
+- Create: `winbuild/installer.iss`
 
 **Interfaces:**
 - Consumes: `dist/WisprClone/` (Task 8 build output), `wisprclone.__version__`.
 - Produces: (when compiled) `dist/WisprClone-Setup.exe`.
 
-- [ ] **Step 1: Create the installer script** — `packaging/installer.iss` (`{#Version}` is passed by `build.ps1` via `/DVersion=`):
+- [ ] **Step 1: Create the installer script** — `winbuild/installer.iss` (`{#Version}` is passed by `build.ps1` via `/DVersion=`):
 
 ```iss
 #ifndef Version
@@ -607,13 +609,13 @@ Type: filesandordirs; Name: "{userappdata}\wisprclone"; Tasks: purgedata
 
 - [ ] **Step 2: Verify the script is present and well-formed** (compilation happens in Task 8)
 
-Run: `python -c "t=open('packaging/installer.iss',encoding='utf-8').read(); assert 'AppMutex=Local\\\\WisprClone' in t and 'PrivilegesRequired=lowest' in t; print('iss ok')"`
+Run: `python -c "t=open('winbuild/installer.iss',encoding='utf-8').read(); assert 'AppMutex=Local\\\\WisprClone' in t and 'PrivilegesRequired=lowest' in t; print('iss ok')"`
 Expected: `iss ok`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packaging/installer.iss
+git add winbuild/installer.iss
 git commit -m "feat: Inno Setup installer script"
 ```
 
@@ -622,8 +624,8 @@ git commit -m "feat: Inno Setup installer script"
 ### Task 8: Build orchestration script + gitignore + docs, and produce the installer
 
 **Files:**
-- Create: `packaging/requirements-build.txt`
-- Create: `packaging/build.ps1`
+- Create: `winbuild/requirements-build.txt`
+- Create: `winbuild/build.ps1`
 - Modify: `.gitignore`
 - Modify: `README.md`
 
@@ -631,7 +633,7 @@ git commit -m "feat: Inno Setup installer script"
 - Consumes: everything above.
 - Produces: `dist/WisprClone-Setup.exe`.
 
-- [ ] **Step 1: Pinned build requirements** — `packaging/requirements-build.txt`:
+- [ ] **Step 1: Pinned build requirements** — `winbuild/requirements-build.txt`:
 
 ```
 faster-whisper==1.2.1
@@ -651,7 +653,7 @@ pyinstaller
 pyinstaller-hooks-contrib
 ```
 
-- [ ] **Step 2: Build script** — `packaging/build.ps1`:
+- [ ] **Step 2: Build script** — `winbuild/build.ps1`:
 
 ```powershell
 # Build WisprClone-Setup.exe: clean venv -> PyInstaller -> Inno Setup.
@@ -665,16 +667,16 @@ py -3.14 -m venv $venv
 $py = Join-Path $venv "Scripts\python.exe"
 
 & $py -m pip install --upgrade pip
-& $py -m pip install -r packaging\requirements-build.txt
+& $py -m pip install -r winbuild\requirements-build.txt
 
 # Generate version resource + icon from the single-source version.
-& $py packaging\gen_version_info.py
-& $py packaging\make_icon.py
+& $py winbuild\gen_version_info.py
+& $py winbuild\make_icon.py
 
 # Clean prior build output, then freeze.
 if (Test-Path build) { Remove-Item -Recurse -Force build }
 if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
-& $py -m PyInstaller --clean --noconfirm packaging\wisprclone.spec
+& $py -m PyInstaller --clean --noconfirm winbuild\wisprclone.spec
 
 if (-not (Test-Path "dist\WisprClone\WisprClone.exe")) { throw "PyInstaller output missing" }
 
@@ -689,7 +691,7 @@ if (-not $iscc) {
   $iscc = $candidate
 } else { $iscc = $iscc.Source }
 
-& $iscc "/DVersion=$ver" packaging\installer.iss
+& $iscc "/DVersion=$ver" winbuild\installer.iss
 
 Write-Host "Built dist\WisprClone-Setup.exe"
 ```
@@ -700,10 +702,10 @@ Write-Host "Built dist\WisprClone-Setup.exe"
 .venv-build/
 build/
 dist/
-packaging/version_info.txt
+winbuild/version_info.txt
 ```
 
-(Note: `packaging/version_info.txt` is generated by the build; it was committed in Task 6 as a smoke artifact — remove it from tracking now: `git rm --cached packaging/version_info.txt`.)
+(Note: `winbuild/version_info.txt` is generated by the build; it was committed in Task 6 as a smoke artifact — remove it from tracking now: `git rm --cached winbuild/version_info.txt`.)
 
 - [ ] **Step 4: Document install** — add to `README.md` under a new "Install (packaged)" section:
 
@@ -722,14 +724,14 @@ during uninstall.
 
 ### Building the installer yourself
 ```
-powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+powershell -ExecutionPolicy Bypass -File winbuild\build.ps1
 ```
 Produces `dist\WisprClone-Setup.exe` (~1–1.4 GB; installed size ~2.3–2.6 GB).
 ```
 
 - [ ] **Step 5: Run the full build**
 
-Run: `powershell -ExecutionPolicy Bypass -File packaging\build.ps1`
+Run: `powershell -ExecutionPolicy Bypass -File winbuild\build.ps1`
 Expected: ends with `Built dist\WisprClone-Setup.exe`; the file exists. (This is long — clean venv install + freezing ~2.5 GB + compressing. Watch for: PyInstaller output missing, ISCC not found, `av.libs`/`hf_xet` warnings.)
 
 - [ ] **Step 6: Verify the frozen app bundled CUDA**
@@ -740,8 +742,8 @@ Expected: `cuBLAS bundled: True`
 - [ ] **Step 7: Commit**
 
 ```bash
-git rm --cached packaging/version_info.txt
-git add packaging/requirements-build.txt packaging/build.ps1 .gitignore README.md
+git rm --cached winbuild/version_info.txt
+git add winbuild/requirements-build.txt winbuild/build.ps1 .gitignore README.md
 git commit -m "feat: build orchestration, gitignore build outputs, install docs"
 ```
 
