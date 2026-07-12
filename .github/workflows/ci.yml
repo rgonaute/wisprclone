@@ -23,3 +23,29 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+  test-macos:
+    runs-on: macos-latest   # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        # pynput pulls the pyobjc frameworks transitively on macOS; PySide6 is
+        # needed only for the entry-point import-smoke. faster-whisper is NOT
+        # installed (imported lazily; exercised in the manual smoke checklist).
+        run: python -m pip install --upgrade pip numpy pynput sounddevice pytest PySide6
+
+      - name: Verify pyobjc frameworks resolve
+        run: python -c "import AppKit, Quartz, ApplicationServices; print('pyobjc ok')"
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Entry-point import smoke
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "import wisprclone_mac.__main__; print('import ok')"
