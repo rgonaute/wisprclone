@@ -64,3 +64,27 @@ python -m pytest
 - **Mixed-language within one sentence** is best-effort — see Language above.
 - History and settings are stored as plain JSON under `%APPDATA%\wisprclone\`
   (local, unencrypted; fine for a single-user machine).
+
+## macOS (Apple Silicon)
+
+Run from source:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-mac.txt
+python -m wisprclone_mac
+```
+
+On first launch, grant **Accessibility**, **Input Monitoring**, and
+**Microphone** in System Settings → Privacy & Security, then relaunch. Default
+push-to-talk is **Right Option**; default model is **medium** on CPU.
+
+Build an app bundle + disk image (on an Apple Silicon Mac):
+
+```bash
+bash macbuild/build.sh    # -> dist/WisprClone.dmg
+```
+
+The `.app` is unsigned/self-signed: on first launch use right-click → Open (or
+System Settings → Privacy & Security → Open Anyway). See
+`docs/superpowers/mac-smoke-checklist.md` for the full manual test.
