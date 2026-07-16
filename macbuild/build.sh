@@ -32,8 +32,11 @@ else
   echo "         TCC permissions will re-prompt on every rebuild." >&2
   sign="-"
 fi
-codesign --force --deep --options runtime \
-  --sign "$sign" "dist/WisprClone.app"
+# No --options runtime: Hardened Runtime denies audio input without a
+# com.apple.security.device.audio-input entitlement and can reject the bundled
+# Python dylibs under library validation; it only matters for notarization,
+# which a self-signed app cannot get anyway.
+codesign --force --deep --sign "$sign" "dist/WisprClone.app"
 
 # Build the .dmg with hdiutil (no create-dmg/Homebrew dependency).
 rm -f dist/WisprClone.dmg
