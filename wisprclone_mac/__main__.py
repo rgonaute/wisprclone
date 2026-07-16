@@ -52,6 +52,18 @@ def _model_is_cached(model: str) -> bool:
     return any(hub.glob(f"models--Systran--faster-whisper-{model}"))
 
 
+def _make_notify(tray_ref: dict, stderr=None):
+    """Tee a notice to stderr and the tray toast. format_notice runs ONCE, up
+    front, so the console and the toast show the same (Cmd+V) text."""
+    def notify(msg: str) -> None:
+        text = format_notice(msg)
+        (stderr or sys.stderr).write(f"[wisprclone] {text}\n")
+        tray = tray_ref["tray"]
+        if tray is not None:
+            tray.notify(text)
+    return notify
+
+
 def main() -> int:
     configure(MAC_APP_DIR / "logs")
 
@@ -81,11 +93,7 @@ def main() -> int:
     window_ref = {"win": None}
     tray_ref = {"tray": None}
 
-    def notify(msg: str) -> None:
-        sys.stderr.write(f"[wisprclone] {msg}\n")
-        tray = tray_ref["tray"]
-        if tray is not None:
-            tray.notify(format_notice(msg))
+    notify = _make_notify(tray_ref)
 
     controller = AppController(
         config, recorder, transcriber, paster, history,
