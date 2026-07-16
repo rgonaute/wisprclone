@@ -28,6 +28,29 @@ def input_monitoring_ok() -> bool:
         return False
 
 
+def request_accessibility() -> None:
+    """Ask macOS for Accessibility trust with the system prompt enabled. This
+    registers the app in the Accessibility TCC pane (so the user can toggle it
+    instead of hunting for the '+' button) and may show Apple's own dialog."""
+    try:
+        from ApplicationServices import (
+            AXIsProcessTrustedWithOptions, kAXTrustedCheckOptionPrompt,
+        )
+        AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: True})
+    except Exception:
+        pass
+
+
+def request_input_monitoring() -> None:
+    """Ask macOS for Input Monitoring access. Registers the app in the Input
+    Monitoring TCC pane and may show the system prompt."""
+    try:
+        from Quartz import CGRequestListenEventAccess
+        CGRequestListenEventAccess()
+    except Exception:
+        pass
+
+
 def missing_permissions(accessibility: bool, input_monitoring: bool) -> list[str]:
     missing = []
     if not accessibility:
@@ -51,10 +74,21 @@ def permission_message(missing: list[str]) -> str:
 
 def preflight(show_dialog: Callable[[str], None],
               ax_check: Callable[[], bool] = accessibility_ok,
-              im_check: Callable[[], bool] = input_monitoring_ok) -> list[str]:
-    """Check permissions; if any are missing, call show_dialog with an
-    explanatory message. Returns the list of missing permission names."""
+              im_check: Callable[[], bool] = input_monitoring_ok,
+              ax_request: Callable[[], None] = request_accessibility,
+              im_request: Callable[[], None] = request_input_monitoring,
+              ) -> list[str]:
+    """Check permissions; for each missing one, ask macOS to request it (which
+    registers the app in the TCC panes and may show the system prompt), then
+    call show_dialog with an explanatory message. Returns the list of missing
+    permission names."""
     missing = missing_permissions(ax_check(), im_check())
+    requests = {"Accessibility": ax_request, "Input Monitoring": im_request}
+    for name in missing:
+        try:
+            requests[name]()
+        except Exception:
+            pass  # the request is best-effort; the dialog below still guides
     if missing:
         show_dialog(permission_message(missing))
     return missing
