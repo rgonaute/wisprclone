@@ -33,7 +33,6 @@ else
   sign="-"
 fi
 codesign --force --deep --options runtime \
-  --identifier com.wisprclone.mac \
   --sign "$sign" "dist/WisprClone.app"
 
 # Build the .dmg with hdiutil (no create-dmg/Homebrew dependency).
