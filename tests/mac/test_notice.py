@@ -21,7 +21,7 @@ class FakeTray:
 
 
 def test_notify_tees_the_same_rewritten_text_to_stderr_and_tray():
-    from wisprclone_mac.__main__ import _make_notify
+    from wisprclone_mac.notice import _make_notify
 
     err = io.StringIO()
     tray = FakeTray()
@@ -33,7 +33,7 @@ def test_notify_tees_the_same_rewritten_text_to_stderr_and_tray():
 
 
 def test_notify_writes_stderr_even_before_the_tray_exists():
-    from wisprclone_mac.__main__ import _make_notify
+    from wisprclone_mac.notice import _make_notify
 
     err = io.StringIO()
     notify = _make_notify({"tray": None}, stderr=err)

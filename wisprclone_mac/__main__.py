@@ -18,7 +18,7 @@ from wisprclone.windows import MainWindow
 
 from . import permissions
 from .config import MAC_APP_DIR, MAC_CONFIG_PATH, MacConfig
-from .notice import format_notice
+from .notice import _make_notify
 from .pasteboard import MacPaster
 from .single_instance import SingleInstance
 
@@ -50,18 +50,6 @@ def _on_main_thread(fn):
 def _model_is_cached(model: str) -> bool:
     hub = Path.home() / ".cache" / "huggingface" / "hub"
     return any(hub.glob(f"models--Systran--faster-whisper-{model}"))
-
-
-def _make_notify(tray_ref: dict, stderr=None):
-    """Tee a notice to stderr and the tray toast. format_notice runs ONCE, up
-    front, so the console and the toast show the same (Cmd+V) text."""
-    def notify(msg: str) -> None:
-        text = format_notice(msg)
-        (stderr or sys.stderr).write(f"[wisprclone] {text}\n")
-        tray = tray_ref["tray"]
-        if tray is not None:
-            tray.notify(text)
-    return notify
 
 
 def main() -> int:
