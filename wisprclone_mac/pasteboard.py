@@ -20,10 +20,13 @@ class MacPaster:
         self._sleep = sleep
 
     def paste_text(self, text: str) -> bool:
-        # No Accessibility -> synthetic Cmd+V is silently dropped by macOS. Bail
-        # BEFORE touching the pasteboard so AppController falls back to copy-only
-        # (and we never set-then-fail-to-restore, wiping the user's clipboard).
+        # No Accessibility -> synthetic Cmd+V is silently dropped by macOS.
+        # AppController reacts to False with a "press Cmd+V to paste" notice but
+        # does NOT copy anything itself, so leave the dictation on the pasteboard
+        # here (copy-only semantics: one write, no save/restore) and report
+        # failure without sending Cmd+V.
         if not self.trust_check():
+            self.pb.set_text(text)
             return False
         previous = self.pb.get_text()          # None if non-text (image/file)
         self.pb.set_text(text)

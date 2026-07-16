@@ -32,11 +32,15 @@ def _paster(prev=None, trusted=True):
     return p, pb, sender
 
 
-def test_returns_false_and_touches_nothing_when_not_trusted():
+def test_untrusted_copies_text_but_never_sends_cmd_v():
+    # AppController reacts to False by telling the user to press Cmd+V — it does
+    # NOT copy anything itself, so the paster must leave the dictation on the
+    # pasteboard (copy-only semantics: exactly one write, no restore).
     p, pb, sender = _paster(prev="old", trusted=False)
     assert p.paste_text("hi") is False
     assert sender.calls == 0
-    assert pb.value == "old"
+    assert pb.value == "hi"
+    assert pb.change_count() == 1   # single set_text; no save/restore dance
 
 
 def test_sends_cmd_v_and_restores_previous_text():
